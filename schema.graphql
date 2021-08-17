@@ -1,0 +1,14 @@
+type Pool @entity {
+  id: ID!
+  totalSupply: BigInt!
+  totalSupplyUsd: BigDecimal!
+  totalDebt: BigInt!
+  totalDebtUsd: BigDecimal!
+  totalRevenue: BigDecimal!
+  totalRevenueUsd: BigDecimal!
+  protocolRevenue: BigDecimal!
+  protocolRevenueUsd: BigDecimal!
+  supplySideRevenue: BigDecimal!
+  supplySideRevenueUsd: BigDecimal!
+  priceToken: BigDecimal
+}
