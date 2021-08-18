@@ -123,25 +123,46 @@ function saveRevenue(poolAddressHex: string, revenue: Revenue): void {
   pool.save();
 }
 
+function handleTotalSupply(
+  blockNumber: BigInt,
+  totalSupplyCall: ethereum.CallResult<BigInt>,
+  pool: Pool,
+  tokenAddress: Address,
+  shareToTokenRate: BigDecimal
+): void {
+  if (totalSupplyCall.reverted) {
+    log.warning('TotalSupply call reverted for pool={} in blockNumber={}', [
+      dataSource.address().toHexString(),
+      blockNumber.toString(),
+    ]);
+    return;
+  }
+  pool.totalSupply = totalSupplyCall.value;
+  let tokenDecimal = Erc20Token.bind(tokenAddress).decimals();
+  pool.totalSupplyUsd = toUsd(
+    pool.totalSupply.toBigDecimal().times(shareToTokenRate),
+    tokenDecimal,
+    tokenAddress
+  );
+}
+
 // This handler is called for every block for v3 Pools. It is used to persist
 // totalSupply and totalDebt(), as there are no events for these methods
 // and are restricted from thegraph to be hooked on.
-export function handleBlockV3(_: ethereum.Block): void {
+export function handleBlockV3(block: ethereum.Block): void {
   let poolAddress = dataSource.address();
   let poolAddressHex = poolAddress.toHexString();
   log.info('Entered handleBlockV3 for address {}', [poolAddressHex]);
   let pool = getPool(poolAddressHex);
   let poolV3 = PoolV3.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
-  let totalSupplyCall = poolV3.try_totalSupply();
-  if (!totalSupplyCall.reverted) {
-    pool.totalSupply = totalSupplyCall.value;
-    pool.totalSupplyUsd = toUsd(
-      pool.totalSupply.toBigDecimal(),
-      poolV3.decimals(),
-      poolV3.token()
-    );
-  }
+  handleTotalSupply(
+    block.number,
+    poolV3.try_totalSupply(),
+    pool,
+    poolV3.token(),
+    getShareToTokenRateV3(poolV3)
+  );
   log.info('pool {}, totalSupply={}', [
     poolAddressHex,
     pool.totalSupply.toString(),
@@ -166,22 +187,20 @@ export function handleBlockV3(_: ethereum.Block): void {
 // totalSupply and totalDebt(), as there are no events for these methods
 // and are restricted from thegraph to be hooked on. totalDebt is calculated as the totalLocked() from the strategy
 // associated to the v2 pool.
-export function handleBlockV2(_: ethereum.Block): void {
+export function handleBlockV2(block: ethereum.Block): void {
   let poolAddress = dataSource.address();
   let poolAddressHex = poolAddress.toHexString();
   log.info('Entered handleBlockV2 for address {}', [poolAddressHex]);
   let pool = getPool(poolAddressHex);
   let poolV2 = PoolV2.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
-  let totalSupplyCall = poolV2.try_totalSupply();
-  if (!totalSupplyCall.reverted) {
-    pool.totalSupply = totalSupplyCall.value;
-    pool.totalSupplyUsd = toUsd(
-      pool.totalSupply.toBigDecimal(),
-      poolV2.decimals(),
-      poolV2.token()
-    );
-  }
+  handleTotalSupply(
+    block.number,
+    poolV2.try_totalSupply(),
+    pool,
+    poolV2.token(),
+    getShareToTokenRateV2(poolV2)
+  );
   log.info('pool {}, totalSupply={}', [
     poolAddressHex,
     pool.totalSupply.toString(),
