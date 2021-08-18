@@ -156,11 +156,12 @@ export function handleBlockV3(block: ethereum.Block): void {
   let pool = getPool(poolAddressHex);
   let poolV3 = PoolV3.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
+  let tokenAddress = poolV3.token();
   handleTotalSupply(
     block.number,
     poolV3.try_totalSupply(),
     pool,
-    poolV3.token(),
+    tokenAddress,
     getShareToTokenRateV3(poolV3)
   );
   log.info('pool {}, totalSupply={}', [
@@ -170,10 +171,11 @@ export function handleBlockV3(block: ethereum.Block): void {
   let totalDebtCall = poolV3.try_totalDebt();
   if (!totalDebtCall.reverted) {
     pool.totalDebt = totalDebtCall.value;
+    let tokenDecimal = Erc20Token.bind(tokenAddress).decimals();
     pool.totalDebtUsd = toUsd(
-      pool.totalDebt.toBigDecimal(),
-      poolV3.decimals(),
-      poolV3.token()
+      pool.totalDebt.toBigDecimal().div(getDecimalDivisor(poolV3.decimals())),
+      tokenDecimal,
+      tokenAddress
     );
   }
   log.info('pool {}, totalDebt={}', [
@@ -194,11 +196,12 @@ export function handleBlockV2(block: ethereum.Block): void {
   let pool = getPool(poolAddressHex);
   let poolV2 = PoolV2.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
+  let tokenAddress = poolV2.token();
   handleTotalSupply(
     block.number,
     poolV2.try_totalSupply(),
     pool,
-    poolV2.token(),
+    tokenAddress,
     getShareToTokenRateV2(poolV2)
   );
   log.info('pool {}, totalSupply={}', [
@@ -210,11 +213,12 @@ export function handleBlockV2(block: ethereum.Block): void {
     let strategy = getStrategy(poolAddress);
     let totalLockedCall = strategy.try_totalLocked();
     if (!totalLockedCall.reverted) {
+      let tokenDecimal = Erc20Token.bind(tokenAddress).decimals();
       pool.totalDebt = totalLockedCall.value;
       pool.totalDebtUsd = toUsd(
-        pool.totalDebt.toBigDecimal(),
-        poolV2.decimals(),
-        poolV2.token()
+        pool.totalDebt.toBigDecimal().div(getDecimalDivisor(tokenDecimal)),
+        tokenDecimal,
+        tokenAddress
       );
     }
     log.info('pool {}, totalDebt={}', [
