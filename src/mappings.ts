@@ -9,11 +9,22 @@ import {
 import { PoolV2, Withdraw, Deposit } from '../types/PoolV2';
 import { AddressList } from '../types/AddressList';
 import { PoolV3, Transfer } from '../types/PoolV3';
+import { Erc20Token } from '../types/Erc20Token';
 import { Pool } from '../types/schema';
-import { toUsd, getStrategy, getStrategyAddress } from './utils';
+import {
+  toUsd,
+  getStrategy,
+  getStrategyAddress,
+  hasStrategy,
+  getShareToTokenRateV2,
+  getShareToTokenRateV3,
+  getDecimalDivisor,
+} from './utils';
 
 const VVSPAddressHex = '0xbA4cFE5741b357FA371b506e5db0774aBFeCf8Fc';
 const ZeroAddressHex = '0x0000000000000000000000000000000000000000';
+let VVSPAddress = Address.fromHexString(VVSPAddressHex);
+let ZeroAddress = Address.fromHexString(ZeroAddressHex);
 
 // these functions compiles to AssemblyScript. Therefore although we are allowed to code in TS in this file
 // we need to do so with the restrictions of AssemblyScript
@@ -33,7 +44,9 @@ function getPool(address: string): Pool {
   let newPool = new Pool(address);
   let zeroString = BigDecimal.fromString('0');
   newPool.totalDebt = BigInt.fromString('0');
+  newPool.totalDebtUsd = zeroString;
   newPool.totalSupply = BigInt.fromString('0');
+  newPool.totalSupplyUsd = zeroString;
   newPool.totalRevenue = zeroString;
   newPool.totalRevenueUsd = zeroString;
   newPool.protocolRevenue = zeroString;
@@ -51,18 +64,22 @@ class Revenue {
   constructor(
     _protocolRevenue: BigDecimal,
     _supplySideRevenue: BigDecimal,
-    decimals: i32,
-    tokenValue: BigDecimal,
+    shareToTokenRate: BigDecimal,
     tokenAddress: Address
   ) {
-    let protocolRevenue = _protocolRevenue.times(tokenValue);
+    let tokenDecimals = Erc20Token.bind(tokenAddress).decimals();
+    let protocolRevenue = _protocolRevenue.times(shareToTokenRate);
     this.protocolRevenue = protocolRevenue;
-    this.protocolRevenueUsd = toUsd(protocolRevenue, decimals, tokenAddress);
-    let supplySideRevenue = _supplySideRevenue.times(tokenValue);
+    this.protocolRevenueUsd = toUsd(
+      protocolRevenue,
+      tokenDecimals,
+      tokenAddress
+    );
+    let supplySideRevenue = _supplySideRevenue.times(shareToTokenRate);
     this.supplySideRevenue = supplySideRevenue;
     this.supplySideRevenueUsd = toUsd(
       supplySideRevenue,
-      decimals,
+      tokenDecimals,
       tokenAddress
     );
   }
@@ -70,8 +87,7 @@ class Revenue {
 
 function calculateRevenue(
   interest: BigDecimal,
-  decimals: i32,
-  tokenValue: BigDecimal,
+  shareToTokenRate: BigDecimal,
   tokenAddress: Address
 ): Revenue {
   // 95% of the fees go to the protocol revenue
@@ -81,8 +97,7 @@ function calculateRevenue(
   return new Revenue(
     protocolRevenue,
     supplySideRevenue,
-    decimals,
-    tokenValue,
+    shareToTokenRate,
     tokenAddress
   );
 }
@@ -108,20 +123,6 @@ function saveRevenue(poolAddressHex: string, revenue: Revenue): void {
   pool.save();
 }
 
-// using this implementation because .includes() fails in comparison
-// and closures are not supported in AssemblyScript (so we can't use .some())
-function hasStrategy(addresses: Address[], toFoundHex: string): bool {
-  for (let i = 0, k = addresses.length; i < k; ++i) {
-    let found = addresses[i].toHexString() == toFoundHex;
-    if (found) {
-      log.info('Address {} found in the list of strategies', [toFoundHex]);
-      return true;
-    }
-  }
-  log.info('Address {} not found in the list of strategies', [toFoundHex]);
-  return false;
-}
-
 // This handler is called for every block for v3 Pools. It is used to persist
 // totalSupply and totalDebt(), as there are no events for these methods
 // and are restricted from thegraph to be hooked on.
@@ -132,22 +133,28 @@ export function handleBlockV3(_: ethereum.Block): void {
   let pool = getPool(poolAddressHex);
   let poolV3 = PoolV3.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
-  pool.totalSupply = poolV3.totalSupply();
-  pool.totalSupplyUsd = toUsd(
-    poolV3.totalSupply().toBigDecimal(),
-    poolV3.decimals(),
-    poolV3.token()
-  );
+  let totalSupplyCall = poolV3.try_totalSupply();
+  if (!totalSupplyCall.reverted) {
+    pool.totalSupply = totalSupplyCall.value;
+    pool.totalSupplyUsd = toUsd(
+      pool.totalSupply.toBigDecimal(),
+      poolV3.decimals(),
+      poolV3.token()
+    );
+  }
   log.info('pool {}, totalSupply={}', [
     poolAddressHex,
     pool.totalSupply.toString(),
   ]);
-  pool.totalDebt = poolV3.totalDebt();
-  pool.totalDebtUsd = toUsd(
-    poolV3.totalDebt().toBigDecimal(),
-    poolV3.decimals(),
-    poolV3.token()
-  );
+  let totalDebtCall = poolV3.try_totalDebt();
+  if (!totalDebtCall.reverted) {
+    pool.totalDebt = totalDebtCall.value;
+    pool.totalDebtUsd = toUsd(
+      pool.totalDebt.toBigDecimal(),
+      poolV3.decimals(),
+      poolV3.token()
+    );
+  }
   log.info('pool {}, totalDebt={}', [
     poolAddressHex,
     pool.totalDebt.toString(),
@@ -166,25 +173,31 @@ export function handleBlockV2(_: ethereum.Block): void {
   let pool = getPool(poolAddressHex);
   let poolV2 = PoolV2.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
-  pool.totalSupply = poolV2.totalSupply();
-  pool.totalSupplyUsd = toUsd(
-    poolV2.totalSupply().toBigDecimal(),
-    poolV2.decimals(),
-    poolV2.token()
-  );
+  let totalSupplyCall = poolV2.try_totalSupply();
+  if (!totalSupplyCall.reverted) {
+    pool.totalSupply = totalSupplyCall.value;
+    pool.totalSupplyUsd = toUsd(
+      pool.totalSupply.toBigDecimal(),
+      poolV2.decimals(),
+      poolV2.token()
+    );
+  }
   log.info('pool {}, totalSupply={}', [
     poolAddressHex,
     pool.totalSupply.toString(),
   ]);
   // vVSP does not have total debt
-  if (poolAddressHex != VVSPAddressHex) {
+  if (poolAddress != VVSPAddress) {
     let strategy = getStrategy(poolAddress);
-    pool.totalDebt = strategy.totalLocked();
-    pool.totalDebtUsd = toUsd(
-      strategy.totalLocked().toBigDecimal(),
-      poolV2.decimals(),
-      poolV2.token()
-    );
+    let totalLockedCall = strategy.try_totalLocked();
+    if (!totalLockedCall.reverted) {
+      pool.totalDebt = totalLockedCall.value;
+      pool.totalDebtUsd = toUsd(
+        pool.totalDebt.toBigDecimal(),
+        poolV2.decimals(),
+        poolV2.token()
+      );
+    }
     log.info('pool {}, totalDebt={}', [
       poolAddressHex,
       pool.totalDebt.toString(),
@@ -194,16 +207,16 @@ export function handleBlockV2(_: ethereum.Block): void {
 }
 
 // This handler is used to calculate the withdraw fees for every pool
-// The Withdraw event is fired in every withdraw, and the fees are calculated from pool.withdrawFee() if the address
+// The Withdraw event is fired in every withdraw, and the fees are calculated if the address
 // withdrawing is not whitelisted - in that case it is 0
 // vVSP does not have withdraw fees either
 function handleWithdrawFee(
   event: Withdraw,
   feeWhiteList: Address,
-  withdrawFee: BigInt,
-  decimals: i32,
-  tokenValue: BigDecimal,
-  tokenAddress: Address
+  withdrawFee: BigDecimal,
+  shareToTokenRate: BigDecimal,
+  tokenAddress: Address,
+  vTokenDecimals: i32
 ): void {
   let poolAddress = dataSource.address();
   let poolAddressHex = poolAddress.toHexString();
@@ -225,7 +238,7 @@ function handleWithdrawFee(
     poolAddressHex,
     feeWhiteListAddressHex,
   ]);
-  if (feeWhiteListAddressHex !== ZeroAddressHex) {
+  if (feeWhiteList != ZeroAddress) {
     let addressList = AddressList.bind(feeWhiteList);
     if (addressList.contains(withdrawerAddress)) {
       log.info('Address {} is whitelisted in pool {}, withdraw is fee-less', [
@@ -237,16 +250,16 @@ function handleWithdrawFee(
   }
   // the divisor value is 1e18, but I was unable to make it work with scientific notation
   let fees = event.params.shares
-    .times(withdrawFee)
     .toBigDecimal()
-    .div(BigDecimal.fromString('1000000000000000000'));
+    .div(getDecimalDivisor(vTokenDecimals))
+    .times(withdrawFee);
   log.info('Fees for tx {} in pool {} originated by withdraw from {} are {}', [
     txHash,
     poolAddressHex,
     withdrawerAddressHex,
     fees.toString(),
   ]);
-  let revenue = calculateRevenue(fees, decimals, tokenValue, tokenAddress);
+  let revenue = calculateRevenue(fees, shareToTokenRate, tokenAddress);
   log.info(
     'Fees distribution for tx {} in pool={}: ProtocolRevenue={}, supplySideRevenue={}',
     [
@@ -270,10 +283,13 @@ export function handleWithdrawFeeV2(event: Withdraw): void {
   handleWithdrawFee(
     event,
     poolV2.feeWhiteList(),
-    poolV2.withdrawFee(),
-    poolV2.decimals(),
-    poolV2.getPricePerShare().toBigDecimal(),
-    poolV2.token()
+    poolV2
+      .withdrawFee()
+      .toBigDecimal()
+      .div(BigDecimal.fromString('1000000000000000000')),
+    getShareToTokenRateV2(poolV2),
+    poolV2.token(),
+    poolV2.decimals()
   );
 }
 
@@ -283,10 +299,10 @@ export function handleWithdrawFeeV3(event: Withdraw): void {
   handleWithdrawFee(
     event,
     poolV3.feeWhitelist(),
-    poolV3.withdrawFee(),
-    poolV3.decimals(),
-    poolV3.totalValue().toBigDecimal().div(poolV3.totalSupply().toBigDecimal()),
-    poolV3.token()
+    poolV3.withdrawFee().toBigDecimal().div(BigDecimal.fromString('10000')),
+    getShareToTokenRateV3(poolV3),
+    poolV3.token(),
+    poolV3.decimals()
   );
 }
 
@@ -302,7 +318,7 @@ export function handleInterestFeeV2(event: Deposit): void {
     poolAddressHex,
   ]);
   let strategyAddress = getStrategyAddress(poolAddress);
-  if (event.params.owner.toHexString() != strategyAddress.toHexString()) {
+  if (event.params.owner != strategyAddress) {
     log.info('Deposit in tx={} for pool={} from {} is not interest fees', [
       txHash,
       event.params.owner.toHexString(),
@@ -311,11 +327,12 @@ export function handleInterestFeeV2(event: Deposit): void {
     return;
   }
   let poolV2 = PoolV2.bind(dataSource.address());
-  // the deposit is in collateral, not in shares, so there is no need for conversion
+  let erc20Token = Erc20Token.bind(poolV2.token());
   let revenue = calculateRevenue(
-    event.params.amount.toBigDecimal(),
-    poolV2.decimals(),
-    BigDecimal.fromString('1'),
+    event.params.amount
+      .toBigDecimal()
+      .div(getDecimalDivisor(erc20Token.decimals())),
+    BigDecimal.fromString('1'), // the deposit is in collateral, not in shares, so there is no need for conversion
     poolV2.token()
   );
   log.info(
@@ -344,13 +361,12 @@ export function handleInterestFeeV3(event: Transfer): void {
     event.transaction.hash.toHex(),
     poolAddressHex,
   ]);
-  let fromHex = event.params.from.toHexString();
-  let toHex = event.params.to.toHexString();
   let poolV3 = PoolV3.bind(poolAddress);
   if (
-    fromHex != ZeroAddressHex ||
-    !hasStrategy(poolV3.getStrategies(), toHex)
+    event.params.from != ZeroAddress ||
+    !hasStrategy(poolV3.getStrategies(), event.params.to)
   ) {
+    let toHex = event.params.to.toHexString();
     log.info(
       'Transfer Event for pool V3 {} was made by {} - it is not interest fees.',
       [poolAddressHex, toHex]
@@ -358,14 +374,12 @@ export function handleInterestFeeV3(event: Transfer): void {
     return;
   }
   let interestFees = event.params.value
-    .times(poolV3.pricePerShare())
     .toBigDecimal()
-    .div(BigDecimal.fromString('1000000000000000000'));
+    .div(getDecimalDivisor(poolV3.decimals()));
   log.info('interestFees={}', [interestFees.toString()]);
   let revenue = calculateRevenue(
     interestFees,
-    poolV3.decimals(),
-    poolV3.totalValue().toBigDecimal().div(poolV3.totalSupply().toBigDecimal()),
+    getShareToTokenRateV3(poolV3),
     poolV3.token()
   );
   log.info(

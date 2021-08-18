@@ -52,6 +52,8 @@ const dataSources = poolsToWatch.map((pool) => {
         }
         - name: PriceRouter
           file: ./abis/uniswap.json
+        - name: Erc20Token
+          file: ./abis/erc-20.json
       # this is used to calculate withdraw fees
       eventHandlers:
         - event: Withdraw(indexed address,uint256,uint256)

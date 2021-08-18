@@ -64,20 +64,81 @@ This is an example query:
 
 ```graphql
 {
-  pools (id: "pool-id") {
-    id,
-    totalSupply,
-    totalDebt,
-    protocolRevenue,
+  pools(id: "pool-id") {
+    id
+    totalSupply
+    totalDebt
+    protocolRevenue
     supplySideRevenue
   }
 }
+```
 
 - `id`: Address of the pool.
 - `totalSupply`: Value of the assets deposited in the pool.
 - `totalDebt`: Value of the assets invested from the pool
 - `protocolRevenue`: For Withdraws, it is 95% of the `withdrawFee`. For interest yield, it is the 95% of the interest fee. Measured in the underlying collateral asset.
 - `supplySideRevenue`: For Withdraws, it is 5% of the `withdrawFee`. For interest yield, it is the 5% of the interest fee. Measured in the underlying collateral asset.
+- `totalRevenue`: `protocolRevenue` plus `supplySideRevenue`
 
-In addition to these metrics, all of them have their conterpart measured in USD
+In addition to these metrics, all of them have their conterpart measured in USD (`protocolRevenueUsd`, `supplySideRevenueUsd` and so on).
+
+## Deployment
+
+### Testing deploy in Graph Studio.
+
+Go to [Graph Studio](https://thegraph.com/studio/) and connect a wallet. Then, the following commands must be run.
+
+```sh
+# The deployment id can be copied from the Details tab
+# This is only required once
+./node_modules/.bin/graph auth  --studio <deployment-id>
+# make sure the latest version of the generated files is correct
+npm run bootstrap && npm run build
+# push to graph studio
+./node_modules/.bin/graph deploy --studio vesper-subgraph-test -l <VERSION>
+```
+
+`<VERSION>` follows a semantic versioning schema and must be incremented on each deploy.
+
+Further information on the steps here [here](https://thegraph.com/docs/developer/deploy-subgraph-studio).
+
+### Troubleshooting errors in Graph Studio
+
+Follow these steps to query the state of the subgraph if it fails even before logging.
+
+1. Go to [graphiql-online](https://graphiql-online.com/).
+1. Enter API `https://api.thegraph.com/index-node/graphql`
+1. Get your Deployment ID - you will find it in the Details section in Graph Studio (keep in mind it changes on every deployment)
+1. Run the following query, replacing the `<DEPLOYMENT-ID>`
+
+```graphql
+{
+  indexingStatuses(subgraphs: ["<DEPLOYMENT-ID>"]) {
+    subgraph
+    synced
+    health
+    entityCount
+    fatalError {
+      handler
+      message
+      deterministic
+      block {
+        hash
+        number
+      }
+    }
+    chains {
+      chainHeadBlock {
+        number
+      }
+      earliestBlock {
+        number
+      }
+      latestBlock {
+        number
+      }
+    }
+  }
+}
 ```
