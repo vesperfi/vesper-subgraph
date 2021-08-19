@@ -20,7 +20,7 @@ let WEthAddress = Address.fromString(
 const ControllerAddress = '0xa4F1671d3Aee73C05b552d57f2d16d3cfcBd0217';
 
 export function getDecimalDivisor(decimals: i32): BigDecimal {
-  return BigDecimal.fromString('1'.concat('0').repeat(decimals));
+  return BigDecimal.fromString('1'.concat('0'.repeat(decimals)));
 }
 
 function getUsdPriceRate(decimals: i32, address: Address): BigDecimal {

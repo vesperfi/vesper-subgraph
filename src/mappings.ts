@@ -271,7 +271,12 @@ function handleWithdrawFee(
       return;
     }
   }
-  // the divisor value is 1e18, but I was unable to make it work with scientific notation
+  log.info('shares for tx {} in pool {} are {} - withdrawFee is ', [
+    txHash,
+    poolAddressHex,
+    event.params.shares.toString(),
+    withdrawFee.toString(),
+  ]);
   let fees = event.params.shares
     .toBigDecimal()
     .div(getDecimalDivisor(vTokenDecimals))
@@ -303,13 +308,11 @@ function handleWithdrawFee(
 // See handleWithdrawFee for explanation.
 export function handleWithdrawFeeV2(event: Withdraw): void {
   let poolV2 = PoolV2.bind(dataSource.address());
+  let poolDecimals = poolV2.decimals();
   handleWithdrawFee(
     event,
     poolV2.feeWhiteList(),
-    poolV2
-      .withdrawFee()
-      .toBigDecimal()
-      .div(BigDecimal.fromString('1000000000000000000')),
+    poolV2.withdrawFee().toBigDecimal().div(getDecimalDivisor(poolDecimals)),
     getShareToTokenRateV2(poolV2),
     poolV2.token(),
     poolV2.decimals()
