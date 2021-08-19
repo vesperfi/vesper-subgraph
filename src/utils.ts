@@ -1,9 +1,11 @@
 import { Address, BigDecimal, BigInt, log } from '@graphprotocol/graph-ts';
+import { Pool } from '../types/schema';
 import { PoolV2 } from '../types/PoolV2';
 import { PoolV3 } from '../types/PoolV3';
 import { Controller } from '../types/Controller';
 import { StrategyV2 } from '../types/StrategyV2';
 import { PriceRouter } from '../types/PriceRouter';
+import { Erc20Token } from '../types/Erc20Token';
 
 // This is using Sushiswap address for Ethereum Mainnet.
 let RouterAddress = Address.fromString(
@@ -118,4 +120,66 @@ export function getShareToTokenRateV3(pool: PoolV3): BigDecimal {
     .pricePerShare()
     .toBigDecimal()
     .div(getDecimalDivisor(pool.decimals()));
+}
+
+export function getPoolV2(address: string): Pool {
+  let pool = Pool.load(address);
+  if (pool != null) {
+    log.info('Returning Pool query for address {}', [address]);
+    return pool as Pool;
+  }
+  log.info('Creating new instance of poolV2 for address {}', [address]);
+  let poolV2 = PoolV2.bind(Address.fromString(address));
+  let newPool = new Pool(address);
+  let zeroString = BigDecimal.fromString('0');
+  newPool.totalDebt = BigInt.fromString('0');
+  newPool.totalDebtUsd = zeroString;
+  newPool.totalSupply = BigInt.fromString('0');
+  newPool.totalSupplyUsd = zeroString;
+  newPool.totalRevenue = zeroString;
+  newPool.totalRevenueUsd = zeroString;
+  newPool.protocolRevenue = zeroString;
+  newPool.protocolRevenueUsd = zeroString;
+  newPool.supplySideRevenue = zeroString;
+  newPool.supplySideRevenueUsd = zeroString;
+  newPool.poolName = poolV2.name();
+  newPool.poolToken = poolV2.symbol();
+  newPool.poolTokenDecimals = poolV2.decimals();
+  newPool.poolVersion = 2;
+  let token = Erc20Token.bind(poolV2.token());
+  newPool.collateralToken = token.symbol();
+  newPool.collateralTokenDecimals = token.decimals();
+  return newPool;
+}
+
+export function getPoolV3(address: string): Pool {
+  let pool = Pool.load(address);
+  if (pool != null) {
+    log.info('Returning Pool query for address {}', [address]);
+    // Casting required because here we know poolsQuery is not null, but the AssemblyScript compiler
+    // is not picking it up
+    return pool as Pool;
+  }
+  log.info('Creating new instance of poolV3 for address {}', [address]);
+  let poolV3 = PoolV3.bind(Address.fromString(address));
+  let newPool = new Pool(address);
+  let zeroString = BigDecimal.fromString('0');
+  newPool.totalDebt = BigInt.fromString('0');
+  newPool.totalDebtUsd = zeroString;
+  newPool.totalSupply = BigInt.fromString('0');
+  newPool.totalSupplyUsd = zeroString;
+  newPool.totalRevenue = zeroString;
+  newPool.totalRevenueUsd = zeroString;
+  newPool.protocolRevenue = zeroString;
+  newPool.protocolRevenueUsd = zeroString;
+  newPool.supplySideRevenue = zeroString;
+  newPool.supplySideRevenueUsd = zeroString;
+  newPool.poolName = poolV3.name();
+  newPool.poolToken = poolV3.symbol();
+  newPool.poolTokenDecimals = poolV3.decimals();
+  newPool.poolVersion = 3;
+  let token = Erc20Token.bind(poolV3.token());
+  newPool.collateralToken = token.symbol();
+  newPool.collateralTokenDecimals = token.decimals();
+  return newPool;
 }

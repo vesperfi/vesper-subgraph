@@ -59,6 +59,13 @@ npm run dev
 
 Open http://127.0.0.1:8000/subgraphs/name/bloqpriv/vesper-subgraph/graphql and use GraphQL to query the data.
 
+Whenever you change `schema.graphql` or the end output of `subgraph.yaml`, the following command must be run to regenerate all the types without deploying
+
+```sh
+npm run bootstrap
+# use npm run dev if you want to also deploy locally
+```
+
 ## Query Model
 
 Checkout the [Vesper Revenue Model](https://docs.vesper.finance/vsp-economics/revenue-model).  
@@ -69,9 +76,21 @@ This is an example query:
   pools(id: "pool-id") {
     "Address of the pool"
     id
-    "Value of the assets deposited in the pool. Measured in pool tokens."
+    "Name of the pool"
+    poolName
+    "Version of the pool (2 or 3)"
+    poolVersion
+    "Symbol of the shares token"
+    poolToken
+    "Number of decimals of poolToken"
+    poolTokenDecimals
+    "Symbol of the token used as collateral in the pool"
+    collateralToken
+    "Number of decimals of collateralToken"
+    collateralTokenDecimals
+    "Amount of assets deposited in the pool. Measured in pool tokens (shares)."
     totalSupply
-    "Value of the assets invested from the pool. Measured in the collateral token."
+    "Amount the assets invested from the pool. Measured in the collateral token."
     totalDebt
     "For Withdraws, it is 95% of the `withdrawFee`. For interest yield, it is the 95% of the interest fee. Measured in the underlying collateral asset."
     protocolRevenue
@@ -111,7 +130,7 @@ Further information on the steps here [here](https://thegraph.com/docs/developer
 
 ### Troubleshooting errors in Graph Studio
 
-Follow these steps to query the state of the subgraph if it fails even before logging.
+Follow these steps to query the state of the subgraph if it fails syncing and there are no logs.
 
 1. Go to [graphiql-online](https://graphiql-online.com/).
 1. Enter API `https://api.thegraph.com/index-node/graphql`
