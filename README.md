@@ -59,7 +59,7 @@ npm run dev
 
 Open http://127.0.0.1:8000/subgraphs/name/bloqpriv/vesper-subgraph/graphql and use GraphQL to query the data.
 
-Whenever you change `schema.graphql` or the end output of `subgraph.yaml`, the following command must be run to regenerate all the types without deploying
+Whenever you change `schema.graphql`, the template in `subgraph.template.yml` or the pools used in `subgraph-generator`, the following command must be run to regenerate all the types without deploying
 
 ```sh
 npm run bootstrap
