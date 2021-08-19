@@ -7,7 +7,9 @@
 - Docker
 - Node v14
 
-### Steps
+**Note** The mappings code is written in [AssemblyScript](https://www.assemblyscript.org/quick-start.html), which is (most of the time - there are exceptions) a subset of Typescript. It is recommended to read the [quirks section](https://www.assemblyscript.org/basics.html#quirks) and the [implementation status](https://www.assemblyscript.org/status.html) section to see which limitations the language has in comparison to Javascript/Typescript.
+
+### Local Environment
 
 - Download the `graph-node` repo in a separated folder
 
@@ -37,20 +39,20 @@ ethereum: mainnet:https://some-url:8545
 
 - Start the docker container
 
-```
+```sh
 docker-compose up
 ```
 
 - Go back to this repo folder. To install the dependencies, run
 
-```
-npm run ci
+```sh
+npm run i
 ```
 
 - Run the following command which will generate then `subgraph.yml`, the types files and then deploy the subgraph locally. You may be prompted a label version.
 
-```
-npm run bootstrap
+```sh
+npm run dev
 ```
 
 - After that, the docker container should start syncing for each pool.
@@ -65,23 +67,27 @@ This is an example query:
 ```graphql
 {
   pools(id: "pool-id") {
+    "Address of the pool"
     id
+    "Value of the assets deposited in the pool. Measured in pool tokens."
     totalSupply
+    "Value of the assets invested from the pool. Measured in the collateral token."
     totalDebt
+    "For Withdraws, it is 95% of the `withdrawFee`. For interest yield, it is the 95% of the interest fee. Measured in the underlying collateral asset."
     protocolRevenue
+    "For Withdraws, it is 5% of the `withdrawFee`. For interest yield, it is the 5% of the interest fee. Measured in the underlying collateral asset."
     supplySideRevenue
+    "protocolRevenue + supplySideRevenue"
+    totalRevenue
+    "The above metrics also have their counterparts measured in Usd"
+    totalSupplyUsd
+    totalDebtUsd
+    protocolRevenueUsd
+    supplySideRevenueUsd
+    totalRevenueUsd
   }
 }
 ```
-
-- `id`: Address of the pool.
-- `totalSupply`: Value of the assets deposited in the pool. Measured in pool tokens.
-- `totalDebt`: Value of the assets invested from the pool. Measured in the collateral token.
-- `protocolRevenue`: For Withdraws, it is 95% of the `withdrawFee`. For interest yield, it is the 95% of the interest fee. Measured in the underlying collateral asset.
-- `supplySideRevenue`: For Withdraws, it is 5% of the `withdrawFee`. For interest yield, it is the 5% of the interest fee. Measured in the underlying collateral asset.
-- `totalRevenue`: `protocolRevenue` plus `supplySideRevenue`
-
-In addition to these metrics, all of them have their conterpart measured in USD (`protocolRevenueUsd`, `supplySideRevenueUsd` and so on).
 
 ## Deployment
 
