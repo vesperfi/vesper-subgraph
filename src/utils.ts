@@ -23,7 +23,7 @@ export function getDecimalDivisor(decimals: i32): BigDecimal {
   return BigDecimal.fromString('1'.concat('0'.repeat(decimals)));
 }
 
-function getUsdPriceRate(decimals: i32, address: Address): BigDecimal {
+function getUsdPriceRate(decimals: i32, address: Address): BigDecimal | null {
   let priceRouter = PriceRouter.bind(RouterAddress);
   // Interpolation with ``not supported by AssemblyScript
   let oneUnit = BigInt.fromString('1'.concat('0'.repeat(decimals)));
@@ -39,10 +39,11 @@ function getUsdPriceRate(decimals: i32, address: Address): BigDecimal {
   ]);
   let ratesCall = priceRouter.try_getAmountsOut(oneUnit, paths);
   if (ratesCall.reverted) {
-    log.error('failed to retrieve usdc rate for address {}', [
+    log.error('failed to retrieve usdc rate for address={}, decimals={}', [
       address.toHexString(),
+      decimals.toString(),
     ]);
-    return BigDecimal.fromString('1');
+    return null;
   }
   // divide by one unit of USDC
   return ratesCall.value.pop().toBigDecimal().div(getDecimalDivisor(6));
@@ -53,15 +54,28 @@ export function toUsd(
   decimals: i32,
   tokenAddress: Address
 ): BigDecimal {
+  // if we are converting from Usdc, it's the same destiniy token, so we return the same value
   if (tokenAddress == UsdcAddress) {
     return amountIn;
   }
+  // if the amount to convert is 0, then
+  if (amountIn === BigDecimal.fromString('0')) {
+    return amountIn;
+  }
   let usdRate = getUsdPriceRate(decimals, tokenAddress);
+  if (usdRate == null) {
+    log.info('Cannot convert {} from address={} to USDC as rate was null', [
+      amountIn.toString(),
+      tokenAddress.toHexString(),
+    ]);
+    return BigDecimal.fromString('0');
+  }
   log.info('USDC rate for address={} is {}', [
     tokenAddress.toHexString(),
     usdRate.toString(),
   ]);
-  return amountIn.times(usdRate);
+  // explicit cast required
+  return amountIn.times(usdRate as BigDecimal);
 }
 
 export function getStrategyAddress(poolAddress: Address): Address {
