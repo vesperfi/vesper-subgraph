@@ -75,8 +75,8 @@ This is an example query:
 ```
 
 - `id`: Address of the pool.
-- `totalSupply`: Value of the assets deposited in the pool.
-- `totalDebt`: Value of the assets invested from the pool
+- `totalSupply`: Value of the assets deposited in the pool. Measured in pool tokens.
+- `totalDebt`: Value of the assets invested from the pool. Measured in the collateral token.
 - `protocolRevenue`: For Withdraws, it is 95% of the `withdrawFee`. For interest yield, it is the 95% of the interest fee. Measured in the underlying collateral asset.
 - `supplySideRevenue`: For Withdraws, it is 5% of the `withdrawFee`. For interest yield, it is the 5% of the interest fee. Measured in the underlying collateral asset.
 - `totalRevenue`: `protocolRevenue` plus `supplySideRevenue`
