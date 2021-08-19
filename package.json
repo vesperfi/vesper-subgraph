@@ -43,12 +43,12 @@
     "prettier": "^2.3.2"
   },
   "dependencies": {
-    "vesper-metadata": "^2.15.0"
+    "vesper-metadata": "2.16.0"
   },
   "prettier": {
     "singleQuote": true
   },
   "lint-staged": {
-    "*.{js,ts,md}": "npm run format:fix"
+    "*.{js,ts,md,json}": "npm run format:fix"
   }
 }

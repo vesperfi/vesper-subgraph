@@ -19,6 +19,8 @@ import {
   getShareToTokenRateV2,
   getShareToTokenRateV3,
   getDecimalDivisor,
+  getPoolV2,
+  getPoolV3,
 } from './utils';
 
 const VVSPAddressHex = '0xbA4cFE5741b357FA371b506e5db0774aBFeCf8Fc';
@@ -31,30 +33,6 @@ let ZeroAddress = Address.fromHexString(ZeroAddressHex);
 // * no union types allowed (so we can't reuse a function here)
 // * comparisons should be made with == (unless comparing exact pointers)
 // * no destructuring
-
-function getPool(address: string): Pool {
-  let pool = Pool.load(address);
-  if (pool != null) {
-    log.info('Returning Pool query for address {}', [address]);
-    // Casting required because here we know poolsQuery is not null, but the AssemblyScript compiler
-    // is not picking it up
-    return pool as Pool;
-  }
-  log.info('Creating new instance of pool for address {}', [address]);
-  let newPool = new Pool(address);
-  let zeroString = BigDecimal.fromString('0');
-  newPool.totalDebt = BigInt.fromString('0');
-  newPool.totalDebtUsd = zeroString;
-  newPool.totalSupply = BigInt.fromString('0');
-  newPool.totalSupplyUsd = zeroString;
-  newPool.totalRevenue = zeroString;
-  newPool.totalRevenueUsd = zeroString;
-  newPool.protocolRevenue = zeroString;
-  newPool.protocolRevenueUsd = zeroString;
-  newPool.supplySideRevenue = zeroString;
-  newPool.supplySideRevenueUsd = zeroString;
-  return newPool;
-}
 
 class Revenue {
   protocolRevenue: BigDecimal;
@@ -102,8 +80,7 @@ function calculateRevenue(
   );
 }
 
-function saveRevenue(poolAddressHex: string, revenue: Revenue): void {
-  let pool = getPool(poolAddressHex);
+function saveRevenue(pool: Pool, revenue: Revenue): void {
   pool.protocolRevenue = pool.protocolRevenue.plus(revenue.protocolRevenue);
   pool.protocolRevenueUsd = pool.protocolRevenueUsd.plus(
     revenue.protocolRevenueUsd
@@ -138,10 +115,12 @@ function handleTotalSupply(
     return;
   }
   pool.totalSupply = totalSupplyCall.value;
-  let tokenDecimal = Erc20Token.bind(tokenAddress).decimals();
   pool.totalSupplyUsd = toUsd(
-    pool.totalSupply.toBigDecimal().times(shareToTokenRate),
-    tokenDecimal,
+    pool.totalSupply
+      .toBigDecimal()
+      .times(shareToTokenRate)
+      .div(getDecimalDivisor(pool.poolTokenDecimals)),
+    pool.collateralTokenDecimals,
     tokenAddress
   );
 }
@@ -153,7 +132,7 @@ export function handleBlockV3(block: ethereum.Block): void {
   let poolAddress = dataSource.address();
   let poolAddressHex = poolAddress.toHexString();
   log.info('Entered handleBlockV3 for address {}', [poolAddressHex]);
-  let pool = getPool(poolAddressHex);
+  let pool = getPoolV3(poolAddressHex);
   let poolV3 = PoolV3.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
   let tokenAddress = poolV3.token();
@@ -173,7 +152,7 @@ export function handleBlockV3(block: ethereum.Block): void {
     pool.totalDebt = totalDebtCall.value;
     let tokenDecimal = Erc20Token.bind(tokenAddress).decimals();
     pool.totalDebtUsd = toUsd(
-      pool.totalDebt.toBigDecimal().div(getDecimalDivisor(poolV3.decimals())),
+      pool.totalDebt.toBigDecimal().div(getDecimalDivisor(tokenDecimal)),
       tokenDecimal,
       tokenAddress
     );
@@ -193,7 +172,7 @@ export function handleBlockV2(block: ethereum.Block): void {
   let poolAddress = dataSource.address();
   let poolAddressHex = poolAddress.toHexString();
   log.info('Entered handleBlockV2 for address {}', [poolAddressHex]);
-  let pool = getPool(poolAddressHex);
+  let pool = getPoolV2(poolAddressHex);
   let poolV2 = PoolV2.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
   let tokenAddress = poolV2.token();
@@ -234,6 +213,7 @@ export function handleBlockV2(block: ethereum.Block): void {
 // withdrawing is not whitelisted - in that case it is 0
 // vVSP does not have withdraw fees either
 function handleWithdrawFee(
+  pool: Pool,
   event: Withdraw,
   feeWhiteList: Address,
   withdrawFee: BigDecimal,
@@ -297,7 +277,7 @@ function handleWithdrawFee(
       revenue.supplySideRevenue.toString(),
     ]
   );
-  saveRevenue(poolAddressHex, revenue);
+  saveRevenue(pool, revenue);
   log.info('Leaving handleWithdraw for pool {}, withdraw made by {} in tx {}', [
     poolAddressHex,
     withdrawerAddressHex,
@@ -307,9 +287,11 @@ function handleWithdrawFee(
 
 // See handleWithdrawFee for explanation.
 export function handleWithdrawFeeV2(event: Withdraw): void {
-  let poolV2 = PoolV2.bind(dataSource.address());
+  let poolAddress = dataSource.address();
+  let poolV2 = PoolV2.bind(poolAddress);
   let poolDecimals = poolV2.decimals();
   handleWithdrawFee(
+    getPoolV2(poolAddress.toHexString()),
     event,
     poolV2.feeWhiteList(),
     poolV2.withdrawFee().toBigDecimal().div(getDecimalDivisor(poolDecimals)),
@@ -321,8 +303,10 @@ export function handleWithdrawFeeV2(event: Withdraw): void {
 
 // See handleWithdrawFee for explanation.
 export function handleWithdrawFeeV3(event: Withdraw): void {
-  let poolV3 = PoolV3.bind(dataSource.address());
+  let poolAddress = dataSource.address();
+  let poolV3 = PoolV3.bind(poolAddress);
   handleWithdrawFee(
+    getPoolV3(poolAddress.toHexString()),
     event,
     poolV3.feeWhitelist(),
     poolV3.withdrawFee().toBigDecimal().div(BigDecimal.fromString('10000')),
@@ -370,7 +354,7 @@ export function handleInterestFeeV2(event: Deposit): void {
       revenue.supplySideRevenue.toString(),
     ]
   );
-  saveRevenue(poolAddressHex, revenue);
+  saveRevenue(getPoolV2(poolAddressHex), revenue);
   log.info('Leaving handleDepositV2 for pool {}, in tx {}', [
     poolAddressHex,
     txHash,
@@ -417,5 +401,5 @@ export function handleInterestFeeV3(event: Transfer): void {
       revenue.supplySideRevenue.toString(),
     ]
   );
-  saveRevenue(poolAddressHex, revenue);
+  saveRevenue(getPoolV3(poolAddressHex), revenue);
 }

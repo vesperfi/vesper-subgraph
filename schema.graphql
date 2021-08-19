@@ -10,5 +10,10 @@ type Pool @entity {
   protocolRevenueUsd: BigDecimal!
   supplySideRevenue: BigDecimal!
   supplySideRevenueUsd: BigDecimal!
-  priceToken: BigDecimal
+  poolName: String!
+  poolVersion: Int!
+  poolToken: String!
+  poolTokenDecimals: Int!
+  collateralToken: String!
+  collateralTokenDecimals: Int!
 }
