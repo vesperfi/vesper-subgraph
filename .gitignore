@@ -1,5 +1,6 @@
 .vscode
 node_modules
+generated
 .DS_Store
 build
 types/

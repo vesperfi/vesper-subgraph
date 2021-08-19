@@ -43,6 +43,7 @@
     "prettier": "^2.3.2"
   },
   "dependencies": {
+    "mustache": "4.2.0",
     "vesper-metadata": "2.16.0"
   },
   "prettier": {
