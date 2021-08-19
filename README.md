@@ -79,7 +79,7 @@ This is an example query:
     supplySideRevenue
     "protocolRevenue + supplySideRevenue"
     totalRevenue
-    "The above metrics also have their counterparts measured in Usd"
+    "The above metrics also have their counterparts measured in USDC (to which we asume ~1 USD)"
     totalSupplyUsd
     totalDebtUsd
     protocolRevenueUsd
