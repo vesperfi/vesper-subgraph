@@ -108,7 +108,18 @@ export function hasStrategy(addresses: Address[], toFound: Address): bool {
   return false;
 }
 
-export function getShareToTokenRateV2(pool: PoolV2): BigDecimal {
+export function getShareToTokenRateV2(pool: PoolV2): BigDecimal | null {
+  // There is an error in V2 pools (not happening in V3 pools) in which from time to time
+  // using pricePerShare breaks with a "SafeMath: subtraction overflow".
+  // This does not happen in V3 pools.
+  // if this error happens, return null instead.
+  let pricePerShareCall = pool.try_getPricePerShare();
+  if (pricePerShareCall.reverted) {
+    log.info('Could not obtain pricePerShare for poolV2={}.', [
+      pool._address.toHexString(),
+    ]);
+    return null;
+  }
   return pool
     .getPricePerShare()
     .toBigDecimal()
