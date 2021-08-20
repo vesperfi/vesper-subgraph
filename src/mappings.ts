@@ -165,23 +165,31 @@ export function handleBlockV3(block: ethereum.Block): void {
 }
 
 // This handler is called for every block for v2 Pools. It is used to persist
-// totalSupply and totalDebt(), as there are no events for these methods
-// and are restricted from thegraph to be hooked on. totalDebt is calculated as the totalLocked() from the strategy
+// totalSupply() and totalDebt(), as there are no events for these methods
+// and are restricted from TheGraph to be hooked on. totalDebt is calculated as the totalLocked() from the strategy
 // associated to the v2 pool.
 export function handleBlockV2(block: ethereum.Block): void {
   let poolAddress = dataSource.address();
   let poolAddressHex = poolAddress.toHexString();
   log.info('Entered handleBlockV2 for address {}', [poolAddressHex]);
-  let pool = getPoolV2(poolAddressHex);
   let poolV2 = PoolV2.bind(poolAddress);
   log.info('Calculating values for pool {}', [poolAddressHex]);
   let tokenAddress = poolV2.token();
+  let pricePerShare = getShareToTokenRateV2(poolV2);
+  if (pricePerShare == null) {
+    log.warning(
+      'Skipping blockNumber={} for pool={} due to getPricePerShare unavailable',
+      [block.number.toString(), poolAddressHex]
+    );
+    return;
+  }
+  let pool = getPoolV2(poolAddressHex);
   handleTotalSupply(
     block.number,
     poolV2.try_totalSupply(),
     pool,
     tokenAddress,
-    getShareToTokenRateV2(poolV2)
+    pricePerShare as BigDecimal
   );
   log.info('pool {}, totalSupply={}', [
     poolAddressHex,
@@ -290,12 +298,27 @@ export function handleWithdrawFeeV2(event: Withdraw): void {
   let poolAddress = dataSource.address();
   let poolV2 = PoolV2.bind(poolAddress);
   let poolDecimals = poolV2.decimals();
+  log.info('handling withdrawFee for pool address={}', [
+    poolAddress.toHexString(),
+  ]);
+  let pricePerShare = getShareToTokenRateV2(poolV2);
+  if (pricePerShare == null) {
+    log.warning(
+      'Skipping tx={} in blockNumber={} for pool={} due to getPricePerShare unavailable',
+      [
+        event.transaction.hash.toHexString(),
+        event.block.number.toString(),
+        poolAddress.toHexString(),
+      ]
+    );
+    return;
+  }
   handleWithdrawFee(
     getPoolV2(poolAddress.toHexString()),
     event,
     poolV2.feeWhiteList(),
     poolV2.withdrawFee().toBigDecimal().div(getDecimalDivisor(poolDecimals)),
-    getShareToTokenRateV2(poolV2),
+    pricePerShare as BigDecimal,
     poolV2.token(),
     poolV2.decimals()
   );
