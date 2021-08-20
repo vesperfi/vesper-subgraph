@@ -32,10 +32,7 @@ cd graph-node/docker
 ethereum: mainnet:https://some-url:8545
 ```
 
-**Notes**
-
-- The node url **must** support batch requests.
-- If another network is used (like `rinkeby`), the `subgraph-generator.js` must be updated. The names in the `docker-compose.yml` and the generated `subgraph.yml` must be the same.
+(See notes below for further considerations).
 
 - Start the docker container
 
@@ -55,9 +52,8 @@ npm run i
 npm run dev
 ```
 
-- After that, the docker container should start syncing for each pool.
-
-Open http://127.0.0.1:8000/subgraphs/name/bloqpriv/vesper-subgraph/graphql and use GraphQL to query the data.
+- After that, the docker container should start syncing for each pool. The url to open the GraphQL api will be in the output (in the form of `http://127.0.0.1:8000/subgraphs/name/<org>/vesper-subgraph/graphql`).  
+  Open it in the browser and use GraphQL to query the data.
 
 Whenever you change `schema.graphql`, the template in `subgraph.template.yml` or the pools used in `subgraph-generator`, the following command must be run to regenerate all the types without deploying
 
@@ -65,6 +61,13 @@ Whenever you change `schema.graphql`, the template in `subgraph.template.yml` or
 npm run bootstrap
 # use npm run dev if you want to also deploy locally
 ```
+
+Wiping out the indexed information can be done by removing the `data` folder in `graph-node/docker`
+
+#### Notes
+
+- The node url **must** support batch requests.
+- If another network is used (like `rinkeby`), the `subgraph.template.yaml` must be updated. The names in the `docker-compose.yml` (in the `graph-node` repo) and the generated `subgraph.yml` must be the same.
 
 ## Query Model
 
@@ -74,39 +77,28 @@ This is an example query:
 ```graphql
 {
   pools(id: "pool-id") {
-    "Address of the pool"
     id
-    "Name of the pool"
     poolName
-    "Version of the pool (2 or 3)"
     poolVersion
-    "Symbol of the shares token"
     poolToken
-    "Number of decimals of poolToken"
     poolTokenDecimals
-    "Symbol of the token used as collateral in the pool"
     collateralToken
-    "Number of decimals of collateralToken"
     collateralTokenDecimals
-    "Amount of assets deposited in the pool. Measured in pool tokens (shares)."
     totalSupply
-    "Amount the assets invested from the pool. Measured in the collateral token."
-    totalDebt
-    "For Withdraws, it is 95% of the `withdrawFee`. For interest yield, it is the 95% of the interest fee. Measured in the underlying collateral asset."
-    protocolRevenue
-    "For Withdraws, it is 5% of the `withdrawFee`. For interest yield, it is the 5% of the interest fee. Measured in the underlying collateral asset."
-    supplySideRevenue
-    "protocolRevenue + supplySideRevenue"
-    totalRevenue
-    "The above metrics also have their counterparts measured in USDC (to which we asume ~1 USD)"
     totalSupplyUsd
+    totalDebt
     totalDebtUsd
+    protocolRevenue
     protocolRevenueUsd
+    supplySideRevenue
     supplySideRevenueUsd
+    totalRevenue
     totalRevenueUsd
   }
 }
 ```
+
+Checkout the [GraphQL schema](./schema.graphql) for further information of each field and their types.
 
 ## Deployment
 
