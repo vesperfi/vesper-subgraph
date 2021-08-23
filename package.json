@@ -6,19 +6,19 @@
   "main": "index.js",
   "scripts": {
     "build": "graph build",
-    "create": "graph create bloqpriv/vesper-subgraph --node https://api.thegraph.com/deploy/",
-    "create-local": "graph create bloqpriv/vesper-subgraph --node http://127.0.0.1:8020",
+    "create": "graph create vesperfi/vesper-subgraph --node https://api.thegraph.com/deploy/",
+    "create-local": "graph create vesperfi/vesper-subgraph --node http://127.0.0.1:8020",
     "codegen": "graph codegen",
     "dev": "npm run bootstrap && npm run create-local && npm run deploy-local",
-    "deploy": "graph deploy bloqpriv/vesper-subgraph --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
-    "deploy-local": "graph deploy bloqpriv/vesper-subgraph --ipfs http://localhost:5001 --node http://127.0.0.1:8020 -l 0.0.1",
+    "deploy": "graph deploy vesperfi/vesper-subgraph --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
+    "deploy-local": "graph deploy vesperfi/vesper-subgraph --ipfs http://localhost:5001 --node http://127.0.0.1:8020 -l 0.0.1",
     "format:fix": "prettier --write",
     "bootstrap": "node subgraph-generator.js",
     "prepare": "husky install"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bloqpriv/vesper-subgraph.git"
+    "url": "git+https://github.com/vesperfi/vesper-subgraph.git"
   },
   "keywords": [
     "Vesper",
@@ -30,9 +30,9 @@
   },
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/bloqpriv/vesper-subgraph/issues"
+    "url": "https://github.com/vesperfi/vesper-subgraph/issues"
   },
-  "homepage": "https://github.com/bloqpriv/vesper-subgraph#readme",
+  "homepage": "https://github.com/vesperfi/vesper-subgraph#readme",
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.21.1",
     "@graphprotocol/graph-ts": "^0.20.0",

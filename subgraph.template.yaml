@@ -1,6 +1,6 @@
 specVersion: 0.0.2
 description: Vesper subgraph.
-repository: https://https://github.com/bloqpriv/vesper-subgraph
+repository: https://github.com/vesperfi/vesper-subgraph
 schema:
   file: ./schema.graphql
 dataSources:
