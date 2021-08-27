@@ -1,5 +1,7 @@
 # Vesper Subgraph
 
+Live subgraph deployed in [the Graph Explorer](https://thegraph.com/explorer/subgraph?id=0x9520b477aa81180e6ddc006fc09fb6d3eb4e807a-0&view=Overview).
+
 ## Setup
 
 ### Prerequisites
