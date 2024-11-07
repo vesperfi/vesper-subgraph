@@ -65,7 +65,7 @@ export function toUsd(
     return amountIn;
   }
   let usdRate = getUsdPriceRate(decimals, tokenAddress);
-  if (usdRate == null) {
+  if (!usdRate) {
     log.info('Cannot convert {} from address={} to USDC as rate was null', [
       amountIn.toString(),
       tokenAddress.toHexString(),

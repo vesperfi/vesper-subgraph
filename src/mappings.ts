@@ -176,7 +176,7 @@ export function handleBlockV2(block: ethereum.Block): void {
   log.info('Calculating values for pool {}', [poolAddressHex]);
   let tokenAddress = poolV2.token();
   let pricePerShare = getShareToTokenRateV2(poolV2);
-  if (pricePerShare == null) {
+  if (!pricePerShare) {
     log.warning(
       'Skipping blockNumber={} for pool={} due to getPricePerShare unavailable',
       [block.number.toString(), poolAddressHex]
@@ -302,7 +302,7 @@ export function handleWithdrawFeeV2(event: Withdraw): void {
     poolAddress.toHexString(),
   ]);
   let pricePerShare = getShareToTokenRateV2(poolV2);
-  if (pricePerShare == null) {
+  if (!pricePerShare) {
     log.warning(
       'Skipping tx={} in blockNumber={} for pool={} due to getPricePerShare unavailable',
       [

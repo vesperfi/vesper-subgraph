@@ -34,17 +34,18 @@
   },
   "homepage": "https://github.com/vesperfi/vesper-subgraph#readme",
   "devDependencies": {
-    "@graphprotocol/graph-cli": "^0.21.1",
-    "@graphprotocol/graph-ts": "^0.20.0",
+    "@graphprotocol/graph-cli": "^0.88.0",
+    "@graphprotocol/graph-ts": "^0.35.0",
     "fs-extra": "^10.0.0",
     "husky": "^7.0.1",
     "lint-staged": "^11.1.2",
     "p-tap": "^3.1.0",
-    "prettier": "^2.3.2"
+    "prettier": "^2.3.2",
+    "source-map-support": "^0.5.21"
   },
   "dependencies": {
     "mustache": "4.2.0",
-    "vesper-metadata": "2.16.0"
+    "vesper-metadata": "2.45.0"
   },
   "prettier": {
     "singleQuote": true
